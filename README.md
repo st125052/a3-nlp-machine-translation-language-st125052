@@ -68,8 +68,10 @@ The output is processed by removing the batch dimension (squeeze(0)) and ignorin
 
 This function effectively demonstrates the model's ability to translate an English sentence into Japanese by generating a prediction without using the correct target sequence as input, simulating real-world usage.
 
+Based on the file below that provides and compares the analysis of multiple attention mechanisms, there seems to be a close tie between multiplicative and additive attention mechanisms in terms of train and validation losses over 3 epochs.
+
 ## Pickling The Model
-The Transformer DL model was chosen for deployment.
+The Additive Transformer DL model was chosen for deployment.
 > The pickled model was saved using a .pkl extension to be used later in a web-based application
 
 # Website Creation
