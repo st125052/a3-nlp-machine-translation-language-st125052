@@ -2,13 +2,13 @@ import torch
 import torch.nn as nn
 
 class DecoderLayer(nn.Module):
-    def __init__(self, hid_dim, n_heads, pf_dim, dropout, device):
+    def __init__(self, hid_dim, n_heads, pf_dim, dropout, attn, device):
         super().__init__()
         self.self_attn_layer_norm = nn.LayerNorm(hid_dim)
         self.enc_attn_layer_norm  = nn.LayerNorm(hid_dim)
         self.ff_layer_norm        = nn.LayerNorm(hid_dim)
-        self.self_attention       = MultiHeadAttentionLayer(hid_dim, n_heads, dropout, device)
-        self.encoder_attention    = MultiHeadAttentionLayer(hid_dim, n_heads, dropout, device)
+        self.self_attention       = MultiHeadAttentionLayer(hid_dim, n_heads, dropout, attn, device)
+        self.encoder_attention    = MultiHeadAttentionLayer(hid_dim, n_heads, dropout, attn, device)
         self.feedforward          = PositionwiseFeedforwardLayer(hid_dim, pf_dim, dropout)
         self.dropout              = nn.Dropout(dropout)
         
@@ -36,12 +36,12 @@ class DecoderLayer(nn.Module):
     
 class Decoder(nn.Module):
     def __init__(self, output_dim, hid_dim, n_layers, n_heads, 
-                 pf_dim, dropout, device,max_length = 100):
+                 pf_dim, dropout, attn, device, max_length = 100):
         super().__init__()
         self.device = device
         self.tok_embedding = nn.Embedding(output_dim, hid_dim)
         self.pos_embedding = nn.Embedding(max_length, hid_dim)
-        self.layers        = nn.ModuleList([DecoderLayer(hid_dim, n_heads, pf_dim, dropout, device)
+        self.layers        = nn.ModuleList([DecoderLayer(hid_dim, n_heads, pf_dim, dropout, attn, device)
                                             for _ in range(n_layers)])
         self.fc_out        = nn.Linear(hid_dim, output_dim)
         self.dropout       = nn.Dropout(dropout)
@@ -75,11 +75,11 @@ class Decoder(nn.Module):
         return output, attention
     
 class EncoderLayer(nn.Module):
-    def __init__(self, hid_dim, n_heads, pf_dim, dropout, device):
+    def __init__(self, hid_dim, n_heads, pf_dim, dropout, attn, device):
         super().__init__()
         self.self_attn_layer_norm = nn.LayerNorm(hid_dim)
         self.ff_layer_norm        = nn.LayerNorm(hid_dim)
-        self.self_attention       = MultiHeadAttentionLayer(hid_dim, n_heads, dropout, device)
+        self.self_attention       = MultiHeadAttentionLayer(hid_dim, n_heads, dropout, attn, device)
         self.feedforward          = PositionwiseFeedforwardLayer(hid_dim, pf_dim, dropout)
         self.dropout              = nn.Dropout(dropout)
         
@@ -97,12 +97,12 @@ class EncoderLayer(nn.Module):
         return src
     
 class Encoder(nn.Module):
-    def __init__(self, input_dim, hid_dim, n_layers, n_heads, pf_dim, dropout, device, max_length = 100):
+    def __init__(self, input_dim, hid_dim, n_layers, n_heads, pf_dim, dropout, attn, device, max_length = 100):
         super().__init__()
         self.device = device
         self.tok_embedding = nn.Embedding(input_dim, hid_dim)
         self.pos_embedding = nn.Embedding(max_length, hid_dim)
-        self.layers        = nn.ModuleList([EncoderLayer(hid_dim, n_heads, pf_dim, dropout, device)
+        self.layers        = nn.ModuleList([EncoderLayer(hid_dim, n_heads, pf_dim, dropout, attn, device)
                                            for _ in range(n_layers)])
         self.dropout       = nn.Dropout(dropout)
         self.scale         = torch.sqrt(torch.FloatTensor([hid_dim])).to(self.device)
@@ -126,9 +126,10 @@ class Encoder(nn.Module):
         #src: [batch_size, src_len, hid_dim]
         
         return src
+            
     
 class MultiHeadAttentionLayer(nn.Module):
-    def __init__(self, hid_dim, n_heads, dropout, device):
+    def __init__(self, hid_dim, n_heads, dropout, attn, device):
         super().__init__()
         assert hid_dim % n_heads == 0
         self.hid_dim  = hid_dim
@@ -142,11 +143,24 @@ class MultiHeadAttentionLayer(nn.Module):
         self.fc_o     = nn.Linear(hid_dim, hid_dim)
         
         self.dropout  = nn.Dropout(dropout)
+
+        self.attn     = attn.lower()
         
         self.scale    = torch.sqrt(torch.FloatTensor([self.head_dim])).to(device)
+
+        if self.attn == 'general':
+            pass
+
+        elif self.attn == 'multiplicative':
+            self.W = nn.Linear(self.head_dim, self.head_dim)
+
+        elif self.attn == 'additive':
+            self.W1 = nn.Linear(self.head_dim, self.head_dim)
+            self.W2 = nn.Linear(self.head_dim, self.head_dim)
+            self.V = nn.Linear(self.head_dim, 1)
                 
     def forward(self, query, key, value, mask = None):
-        #src, src, src, src_mask
+        #src, src, src, sr_cmask
         #query = [batch size, query len, hid dim]
         #key = [batch size, key len, hid dim]
         #value = [batch size, value len, hid dim]
@@ -163,9 +177,24 @@ class MultiHeadAttentionLayer(nn.Module):
         V = V.view(batch_size, -1, self.n_heads, self.head_dim).permute(0, 2, 1, 3)
         #Q = [batch_size, n heads, query len, head_dim]
         
-        energy = torch.matmul(Q, K.permute(0, 1, 3, 2)) / self.scale
-        #Q = [batch_size, n heads, query len, head_dim] @ K = [batch_size, n heads, head_dim, key len]
-        #energy = [batch_size, n heads, query len, key len]
+        if self.attn == 'multiplicative':
+            K_transformed = self.W(K)
+            energy = torch.matmul(Q, K_transformed.transpose(-2, -1)) / self.scale
+            
+        elif self.attn == 'general':
+            energy = torch.matmul(Q, K.transpose(-2, -1)) / self.scale
+            
+        elif self.attn == 'additive':
+            Q_transformed = self.W1(Q)
+            K_transformed = self.W2(K)
+            
+            # Expand dimensions for broadcasting
+            Q_expanded = Q_transformed.unsqueeze(-2)  # [batch, heads, query_len, 1, head_dim]
+            K_expanded = K_transformed.unsqueeze(-3)  # [batch, heads, 1, key_len, head_dim]
+            
+            # Calculate additive attention
+            energy = torch.tanh(Q_expanded + K_expanded)  # [batch, heads, query_len, key_len, head_dim]
+            energy = self.V(energy).squeeze(-1)  # [batch, heads, query_len, key_len]
         
         #for making attention to padding to 0
         if mask is not None:
@@ -188,6 +217,7 @@ class MultiHeadAttentionLayer(nn.Module):
         #x = [batch_size, query len, hid dim]
         
         return x, attention
+        
 
 class PositionwiseFeedforwardLayer(nn.Module):
     def __init__(self, hid_dim, pf_dim, dropout):
