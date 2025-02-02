@@ -68,7 +68,9 @@ The output is processed by removing the batch dimension (squeeze(0)) and ignorin
 
 This function effectively demonstrates the model's ability to translate an English sentence into Japanese by generating a prediction without using the correct target sequence as input, simulating real-world usage.
 
-Based on the file below that provides and compares the analysis of multiple attention mechanisms, there seems to be a close tie between multiplicative and additive attention mechanisms in terms of train and validation losses over 3 epochs.
+Based on the file below that provides and compares the analysis of multiple attention mechanisms, there seems to be a close tie between multiplicative and additive attention mechanisms in terms of train and validation losses over 3 epochs. 
+
+[Analysis Metrics](https://github.com/st125052/a3-nlp-machine-translation-language-st125052/blob/main/notebooks/pdfs/Attentions%20Analysis%20in%20Tasks%202%20and%203.pdf)
 
 ## Pickling The Model
 The Additive Transformer DL model was chosen for deployment.
