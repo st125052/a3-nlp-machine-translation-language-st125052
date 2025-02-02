@@ -1,5 +1,7 @@
 Flask
 Flask-CORS
 Werkzeug
-numpy
+numpy<2
+torch==1.9.0
+torchtext==0.10.0
 pickle-mixin
