@@ -32,11 +32,9 @@ function predictRelevantContent(search) {
                 searchResultElement.innerHTML = '';
 
                 data.forEach(word => {
-                    const button = document.createElement('button');
-                    button.textContent = word;
-                    button.className = 'btn btn-word mx-1 my-1';
-                    searchResultElement.appendChild(button);
+                    searchResultElement.innerHTML += `${word} `;
                 });
+                
                 resultContainer.style.display = 'block';
             } else {
                 console.error('Unexpected API response format:', data);
