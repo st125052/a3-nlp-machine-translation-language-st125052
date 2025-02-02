@@ -4,14 +4,7 @@ import pickle
 import dill
 
 from helper.translate import perform_sample_translation
-
-from classes.transformer.decoder import Decoder
-from classes.transformer.encoder import Encoder
-from classes.transformer.encoder_layer import EncoderLayer
-from classes.transformer.decoder_layer import DecoderLayer
-from classes.transformer.multi_head_attention_layer import MultiHeadAttention
-from classes.transformer.position_wise_feed_forward_layer import PositionwiseFeedforward
-from classes.transformer.sequence_to_sequence_transformer import SequenceToSequenceTransformer
+from app.classes.transformer.all_classes import *
 
 # Load the model and the scaler
 with open('./models/transformer/model.pkl', 'rb') as model_file:
