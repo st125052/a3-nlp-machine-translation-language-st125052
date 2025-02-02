@@ -32,7 +32,7 @@ function predictRelevantContent(search) {
                 searchResultElement.innerHTML = '';
 
                 data.forEach(word => {
-                    searchResultElement.innerHTML += `${word} `;
+                    searchResultElement.innerHTML += `${word}`;
                 });
                 
                 resultContainer.style.display = 'block';

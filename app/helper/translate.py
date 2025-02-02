@@ -1,4 +1,5 @@
 import torch
+from torchtext.data.utils import get_tokenizer
 
 SRC_LANGUAGE = 'english'
 TRG_LANGUAGE = 'japanese'
@@ -20,6 +21,13 @@ def get_text_transform(token_transform, vocab_transform):
     text_transform = {}
     for ln in [SRC_LANGUAGE, TRG_LANGUAGE]:
         text_transform[ln] = sequential_transforms(token_transform[ln], vocab_transform[ln], tensor_transform)
+    return text_transform
+
+def get_token_transform():
+    token_transform = {}
+    token_transform[SRC_LANGUAGE] = get_tokenizer('spacy', language='en_core_web_sm')
+    token_transform[TRG_LANGUAGE] = get_tokenizer('spacy', language='ja_core_news_sm')
+    return token_transform
 
 def get_torch_device():
     return torch.device('cpu')
@@ -41,4 +49,4 @@ def perform_sample_translation(model, input_text, text_transform, vocab_transfor
     output = output[1:]
     output_max = output.argmax(1)
     mapping = vocab_transform[TRG_LANGUAGE].get_itos()
-    return "".join([mapping[i] for i in output_max])
+    return [mapping[i] for i in output_max]
