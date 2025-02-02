@@ -1,20 +1,28 @@
 from flask import Flask, request, send_from_directory, jsonify
 from flask_cors import CORS
 import pickle
-import dill
+from pathlib import Path
 
-from helper.translate import perform_sample_translation
-from app.classes.transformer.all_classes import *
+from helper.translate import *
+from classes.transformer.all_classes import *
 
 # Load the model and the scaler
-with open('./models/transformer/model.pkl', 'rb') as model_file:
+base_dir = Path('./models/transformer')
+
+# Define the file paths
+model_path = base_dir / 'model.pkl'
+vocab_transform_path = base_dir / 'vocab_transform.pkl'
+token_transform_path = base_dir / 'token_transform.pkl'
+
+# Load the model, vocab_transform, and token_transform
+with open(model_path, 'rb') as model_file:
     model = pickle.load(model_file)
 
-with open('./models/transformer/vocab_transform.pkl', 'rb') as model_file:
+with open(vocab_transform_path, 'rb') as model_file:
     vocab_transform = pickle.load(model_file)
 
-with open('../notebooks/helper/transformer/text_transform.pkl', 'rb') as model_file:
-    text_transform = dill.load(model_file)
+with open(token_transform_path, 'rb') as model_file:
+    token_transform = pickle.load(model_file)
 
 # Create the Flask app
 app = Flask(__name__, static_folder='./static', static_url_path='')
@@ -34,7 +42,7 @@ def serve_custom_path(path):
 @app.route('/predict', methods=['GET'])
 def predict_price():
     input_search_text = request.args.get('search')
-
+    text_transform = get_text_transform(token_transform, vocab_transform)
     prediction = perform_sample_translation(model, input_search_text, text_transform, vocab_transform)
 
     return jsonify(prediction)
